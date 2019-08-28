@@ -1,4 +1,5 @@
-# hbfmodules.skeleton
-Module base repository
+# hbfmodules.spi.dump_eeprom
 
-Please read [CONTRIBUTING.md](https://github.com/hydrabus-framework/framework/blob/Architecture/CONTRIBUTING.md) to understand the process for any contribution.
+The aim of this module is to dump
+
+Inspired from Pedro Ribeiro's script [hydra_spi_dump](https://github.com/hydrabus/hydrafw/blob/master/contrib/hydra_spi_dump/hydra_spi_dump.py)

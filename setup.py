@@ -2,9 +2,9 @@
 
 from setuptools import setup, find_packages
 
-__author__ = ""
+__author__ = "Jordan Ovrè <ghecko78@gmail.com>"
 
-description = ''
+description = 'Hydrabus framework module to dump SPI EEPROM'
 name = 'hbfmodules.spi.dump_eeprom'
 setup(
     name=name,
@@ -14,7 +14,9 @@ setup(
     description=description,
     author=__author__,
     url='https://github.com/hydrabus-framework/' + name,
-    install_requires=[],
+    install_requires=[
+        'hexdump==3.3'
+    ],
     classifiers=[
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Programming Language :: Python :: 3',
