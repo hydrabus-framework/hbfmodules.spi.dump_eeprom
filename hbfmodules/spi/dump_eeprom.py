@@ -100,7 +100,7 @@ class SpiDump(AModule):
 
     def dump_spi(self):
         sectors = self.get_option_value("sectors")
-        start_addr = self.get_option_value("start_address")
+        start_sector = self.get_option_value("start_sector")
         dump_file = self.get_option_value("dumpfile")
         sector_size = 0x1000
         buff = bytearray()
@@ -109,11 +109,11 @@ class SpiDump(AModule):
         self.logger.handle("Dump {}".format(self._sizeof_fmt(size)))
         try:
             line_length = 0
-            while start_addr < size:
+            while start_sector < size:
                 # write-then-read: write 4 bytes (1 read cmd + 3 read addr), read sector_size bytes
                 self.serial.write(b'\x04\x00\x04' + struct.pack('>L', sector_size)[2:])
                 # read command (\x03) and address
-                self.serial.write(b'\x03' + struct.pack('>L', start_addr)[1:])
+                self.serial.write(b'\x03' + struct.pack('>L', start_sector)[1:])
                 # Hydrabus will send \x01 in case of success...
                 ret = self.serial.read(1)
                 if not ret:
@@ -121,10 +121,10 @@ class SpiDump(AModule):
                 buff += self.serial.read(sector_size)
                 # TODO: implement this in framework logger
                 print(" "*line_length, end="\r", flush=True)
-                print("Readed: {}".format(self._sizeof_fmt(start_addr)), end="\r", flush=True)
-                line_length = len("Readed: {}".format(self._sizeof_fmt(start_addr)))
-                start_addr += sector_size
-            self.logger.handle("Readed: {}".format(self._sizeof_fmt(start_addr)))
+                print("Readed: {}".format(self._sizeof_fmt(start_sector)), end="\r", flush=True)
+                line_length = len("Readed: {}".format(self._sizeof_fmt(start_sector)))
+                start_sector += sector_size
+            self.logger.handle("Readed: {}".format(self._sizeof_fmt(start_sector)))
             with open(dump_file, 'wb+') as f:
                 f.write(buff)
             self.logger.handle("Finished dumping to {}".format(dump_file), Logger.RESULT)
