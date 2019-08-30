@@ -160,9 +160,3 @@ class SpiDump(AModule):
             self.logger.handle("Reset hydrabus to console mode", Logger.INFO)
             hb_reset(self.serial)
             hb_close(self.serial)
-
-        """
-        see https://github.com/hydrabus/hydrafw/blob/master/contrib/hydra_spi_dump/hydra_spi_dump.py
-        Our code here
-        :return:
-        """
