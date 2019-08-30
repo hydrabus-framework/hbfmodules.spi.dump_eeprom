@@ -1,4 +1,5 @@
 import serial
+import struct
 
 from hydrabus_framework.modules.AModule import AModule
 from hydrabus_framework.utils.hb_generic_cmd import hb_connect_bbio, hb_reset, hb_close
@@ -26,12 +27,12 @@ class SpiDump(AModule):
             {"Name": "sectors", "Value": "", "Required": True, "Type": "int",
              "Description": "The number of sector (4096) to read. For example 1024 sector * 4096 = 4MiB",
              "Default": "1024"},
-            {"Name": "start_address", "Value": "", "Required": True, "Type": "string",
-             "Description": "The starting address", "Default": "0x00"},
+            {"Name": "start_sector", "Value": "", "Required": True, "Type": "int",
+             "Description": "The starting sector (1 sector = 4096 bytes)", "Default": "0"},
             {"Name": "spi_device", "Value": "", "Required": True, "Type": "string",
              "Description": "The hydrabus SPI device (SPI1 or SPI2)", "Default": "SPI1"},
             {"Name": "spi_speed", "Value": "", "Required": True, "Type": "string",
-             "Description": "set SPI speed (fast = 10.5MHz, slow = 320kHz)", "Default": "fast"},
+             "Description": "set SPI speed (fast = 10.5MHz, slow = 320kHz)", "Default": "low"},
             {"Name": "spi_polarity", "Value": "", "Required": True, "Type": "string",
              "Description": "set SPI polarity (high or low)", "Default": "low"},
             {"Name": "spi_phase", "Value": "", "Required": True, "Type": "string",
@@ -89,27 +90,41 @@ class SpiDump(AModule):
             self.logger.handle("Unable to connect to hydrabus", Logger.ERROR)
             return False
 
+    @staticmethod
+    def _sizeof_fmt(num, suffix='B'):
+        for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
+            if abs(num) < 1024.0:
+                return "%3.1f%s%s" % (num, unit, suffix)
+            num /= 1024.0
+        return "%.1f%s%s" % (num, 'Yi', suffix)
+
     def dump_spi(self):
-        sector = 0
         sectors = self.get_option_value("sectors")
         start_addr = self.get_option_value("start_address")
         dump_file = self.get_option_value("dumpfile")
         sector_size = 0x1000
         buff = bytearray()
+        size = sector_size * sectors
 
+        self.logger.handle("Dump {}".format(self._sizeof_fmt(size)))
         try:
-            while sector < sectors:
+            line_length = 0
+            while start_addr < size:
                 # write-then-read: write 4 bytes (1 read cmd + 3 read addr), read sector_size bytes
-                self.serial.write(b'\x04\x00\x04' + self.hex_to_bin(sector_size, 2))
+                self.serial.write(b'\x04\x00\x04' + struct.pack('>L', sector_size)[2:])
                 # read command (\x03) and address
-                self.serial.write(b'\x03' + self.calc_hex_addr(start_addr, sector * sector_size))
+                self.serial.write(b'\x03' + struct.pack('>L', start_addr)[1:])
                 # Hydrabus will send \x01 in case of success...
                 ret = self.serial.read(1)
                 if not ret:
-                    raise UserWarning("Invalid read command... Please retry")
+                    raise UserWarning("Error reading data... Abort")
                 buff += self.serial.read(sector_size)
-                self.logger.handle("Read sector {}".format(sector), Logger.INFO)
-                sector += 1
+                # TODO: implement this in framework logger
+                print(" "*line_length, end="\r", flush=True)
+                print("Readed: {}".format(self._sizeof_fmt(start_addr)), end="\r", flush=True)
+                line_length = len("Readed: {}".format(self._sizeof_fmt(start_addr)))
+                start_addr += sector_size
+            self.logger.handle("Readed: {}".format(self._sizeof_fmt(start_addr)))
             with open(dump_file, 'wb+') as f:
                 f.write(buff)
             self.logger.handle("Finished dumping to {}".format(dump_file), Logger.RESULT)
