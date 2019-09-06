@@ -32,7 +32,7 @@ class SpiDump(AModule):
             {"Name": "spi_device", "Value": "", "Required": True, "Type": "string",
              "Description": "The hydrabus SPI device (SPI1 or SPI2)", "Default": "SPI1"},
             {"Name": "spi_speed", "Value": "", "Required": True, "Type": "string",
-             "Description": "set SPI speed (fast = 10.5MHz, slow = 320kHz)", "Default": "low"},
+             "Description": "set SPI speed (fast = 10.5MHz, slow = 320kHz)", "Default": "slow"},
             {"Name": "spi_polarity", "Value": "", "Required": True, "Type": "string",
              "Description": "set SPI polarity (high or low)", "Default": "low"},
             {"Name": "spi_phase", "Value": "", "Required": True, "Type": "string",
@@ -148,7 +148,7 @@ class SpiDump(AModule):
                 if spi_speed_string.upper() == "FAST":
                     if not set_spi_speed(self.serial, spi_speed="10.5MHZ", spi_device=spi_device):
                         return
-                elif spi_speed_string.upper() == "LOW":
+                elif spi_speed_string.upper() == "SLOW":
                     if not set_spi_speed(self.serial, spi_speed="320KHZ", spi_device=spi_device):
                         return
                 else:
