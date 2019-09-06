@@ -152,7 +152,7 @@ class SpiDump(AModule):
                     if not set_spi_speed(self.serial, spi_speed="320KHZ", spi_device=spi_device):
                         return
                 else:
-                    self.logger.handle("Invalid spi_speed value ('low' or 'fast' expected)", Logger.ERROR)
+                    self.logger.handle("Invalid spi_speed value ('slow' or 'fast' expected)", Logger.ERROR)
                     return
                 self.logger.handle("Starting to read chip...", Logger.INFO)
                 self.logger.handle("Reading {} sectors".format(self.get_option_value("sectors")))
