@@ -109,6 +109,8 @@ class SpiDump(AModule):
         self.logger.handle("Dump {}".format(self._sizeof_fmt(size)))
         try:
             line_length = 0
+            # Ensure to empty the input buffer
+            self.serial.read(self.serial.in_waiting)
             while start_sector < size:
                 # write-then-read: write 4 bytes (1 read cmd + 3 read addr), read sector_size bytes
                 self.serial.write(b'\x04\x00\x04' + struct.pack('>L', sector_size)[2:])
