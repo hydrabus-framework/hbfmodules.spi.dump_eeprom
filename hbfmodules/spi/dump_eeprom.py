@@ -125,7 +125,7 @@ class SpiDump(AModule):
                 line_length = len("Readed: {}".format(self._sizeof_fmt(start_sector)))
                 start_sector += sector_size
             self.logger.handle("Readed: {}".format(self._sizeof_fmt(start_sector)))
-            with open(dump_file, 'wb+') as f:
+            with open(dump_file, 'wb') as f:
                 f.write(buff)
             self.logger.handle("Finished dumping to {}".format(dump_file), Logger.RESULT)
         except UserWarning as err:
