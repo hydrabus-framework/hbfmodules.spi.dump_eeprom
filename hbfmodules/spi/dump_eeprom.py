@@ -2,9 +2,8 @@ import serial
 import struct
 
 from hydrabus_framework.modules.AModule import AModule
-from hydrabus_framework.utils.hb_generic_cmd import hb_connect_bbio, hb_reset, hb_close
-from hydrabus_framework.utils.protocols.spi import hb_switch_spi, hb_configure_spi_port, set_spi_speed
 from hydrabus_framework.utils.logger import Logger
+from hydrabus_framework.utils.pyHydrabus.spi import SPI
 
 
 class SpiDump(AModule):
@@ -16,7 +15,7 @@ class SpiDump(AModule):
             'description': 'Module to dump SPI EEPROM',
             'author': 'Jordan Ovrè'
         })
-        self.serial = serial.Serial()
+        self.hb_serial = None
         self.options = [
             {"Name": "hydrabus", "Value": "", "Required": True, "Type": "string",
              "Description": "Hydrabus device", "Default": self.config["HYDRABUS"]["port"]},
@@ -29,14 +28,14 @@ class SpiDump(AModule):
              "Default": "1024"},
             {"Name": "start_sector", "Value": "", "Required": True, "Type": "int",
              "Description": "The starting sector (1 sector = 4096 bytes)", "Default": "0"},
-            {"Name": "spi_device", "Value": "", "Required": True, "Type": "string",
-             "Description": "The hydrabus SPI device (SPI1 or SPI2)", "Default": "SPI1"},
+            {"Name": "spi_device", "Value": "", "Required": True, "Type": "int",
+             "Description": "The hydrabus SPI device (1=SPI1 or 0=SPI2)", "Default": 1},
             {"Name": "spi_speed", "Value": "", "Required": True, "Type": "string",
              "Description": "set SPI speed (fast = 10.5MHz, slow = 320kHz)", "Default": "slow"},
-            {"Name": "spi_polarity", "Value": "", "Required": True, "Type": "string",
-             "Description": "set SPI polarity (high or low)", "Default": "low"},
+            {"Name": "spi_polarity", "Value": "", "Required": True, "Type": "int",
+             "Description": "set SPI polarity (1=high or 0=low)", "Default": 0},
             {"Name": "spi_phase", "Value": "", "Required": True, "Type": "string",
-             "Description": "set SPI phase (high or low)", "Default": "low"}
+             "Description": "set SPI phase (1=high or 0=low)", "Default": 0}
         ]
 
     def hex_to_bin(self, num, padding):
@@ -80,14 +79,26 @@ class SpiDump(AModule):
         Manage connection and init of the hydrabus into BBIO spi mode
         :return: Bool
         """
-        if self.connect():
-            if hb_switch_spi(self.serial):
-                return True
-            else:
-                self.logger.handle("Unable to switch hydrabus in spi mode, please reset it", Logger.ERROR)
+        try:
+            device = self.get_option_value("hydrabus")
+            timeout = int(self.get_option_value("timeout"))
+            self.hb_serial = SPI(device)
+            self.hb_serial.timeout = timeout
+            self.hb_serial.device = self.get_option_value("spi_device")
+            self.hb_serial.polarity = self.get_option_value("spi_polarity")
+            self.hb_serial.phase = self.get_option_value("spi_phase")
+            spi_speed_string = self.get_option_value("spi_speed")
+            if spi_speed_string.upper() not in ["SLOW", "FAST"]:
+                self.logger.handle("Invalid spi_speed value ('slow' or 'fast' expected)", Logger.ERROR)
                 return False
-        else:
-            self.logger.handle("Unable to connect to hydrabus", Logger.ERROR)
+            if self.get_option_value("spi_speed").upper() == "FAST":
+                if self.get_option_value("spi_device") == 1:
+                    self.hb_serial.set_speed(SPI.SPI1_SPEED_10M)
+                else:
+                    self.hb_serial.set_speed(SPI.SPI2_SPEED_10M)
+            return True
+        except serial.SerialException as err:
+            self.logger.handle("{}".format(err), self.logger.ERROR)
             return False
 
     @staticmethod
@@ -110,17 +121,15 @@ class SpiDump(AModule):
         try:
             line_length = 0
             # Ensure to empty the input buffer
-            self.serial.read(self.serial.in_waiting)
+            self.hb_serial.read(self.hb_serial.hydrabus.in_waiting)
             while start_sector < size:
                 # write-then-read: write 4 bytes (1 read cmd + 3 read addr), read sector_size bytes
-                self.serial.write(b'\x04\x00\x04' + struct.pack('>L', sector_size)[2:])
-                # read command (\x03) and address
-                self.serial.write(b'\x03' + struct.pack('>L', start_sector)[1:])
-                # Hydrabus will send \x01 in case of success...
-                ret = self.serial.read(1)
+                # data = struct.pack('>L', sector_size)[2:] + b'\x03' + struct.pack('>L', start_sector)[1:]
+                data = b'\x03' + struct.pack('>L', start_sector)[1:]
+                ret = self.hb_serial.write_read(data=data, read_len=sector_size)
                 if not ret:
                     raise UserWarning("Error reading data... Abort")
-                buff += self.serial.read(sector_size)
+                buff += ret
                 # TODO: implement this in framework logger
                 print(" "*line_length, end="\r", flush=True)
                 print("Readed: {}".format(self._sizeof_fmt(start_sector)), end="\r", flush=True)
@@ -139,26 +148,10 @@ class SpiDump(AModule):
         The aim of this module is to dump an spi eeprom
         :return: Nothing
         """
+
         if self.init_hydrabus():
-            result = hb_configure_spi_port(self.serial,
-                                           polarity=self.get_option_value("spi_polarity"),
-                                           phase=self.get_option_value("spi_phase"),
-                                           spi_device=self.get_option_value("spi_device"))
-            if result:
-                spi_device = self.get_option_value("spi_device")
-                spi_speed_string = self.get_option_value("spi_speed")
-                if spi_speed_string.upper() == "FAST":
-                    if not set_spi_speed(self.serial, spi_speed="10.5MHZ", spi_device=spi_device):
-                        return
-                elif spi_speed_string.upper() == "SLOW":
-                    if not set_spi_speed(self.serial, spi_speed="320KHZ", spi_device=spi_device):
-                        return
-                else:
-                    self.logger.handle("Invalid spi_speed value ('slow' or 'fast' expected)", Logger.ERROR)
-                    return
                 self.logger.handle("Starting to read chip...", Logger.INFO)
                 self.logger.handle("Reading {} sectors".format(self.get_option_value("sectors")))
                 self.dump_spi()
-            self.logger.handle("Reset hydrabus to console mode", Logger.INFO)
-            hb_reset(self.serial)
-            hb_close(self.serial)
+        self.logger.handle("Reset hydrabus to console mode", Logger.INFO)
+        self.hb_serial.close()
