@@ -138,10 +138,11 @@ class SpiDump(AModule):
         The aim of this module is to dump an spi eeprom
         :return: Nothing
         """
-
         if self.init_hydrabus():
                 self.logger.handle("Starting to read chip...", Logger.INFO)
                 self.logger.handle("Reading {} sectors".format(self.get_option_value("sectors")))
                 self.dump_spi()
         self.logger.handle("Reset hydrabus to console mode", Logger.INFO)
-        self.hb_serial.close()
+        if self.hb_serial:
+            self.hb_serial.close()
+
