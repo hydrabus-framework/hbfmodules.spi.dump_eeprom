@@ -8,7 +8,7 @@ description = 'Hydrabus framework module to dump SPI EEPROM'
 name = 'hbfmodules.spi.dump_eeprom'
 setup(
     name=name,
-    version='0.0.1',
+    version='0.0.2',
     packages=find_packages(),
     license='GPLv3',
     description=description,

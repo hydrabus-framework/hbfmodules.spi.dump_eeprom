@@ -31,7 +31,7 @@ class SpiDump(AModule):
             {"Name": "spi_device", "Value": "", "Required": True, "Type": "int",
              "Description": "The hydrabus SPI device (1=SPI1 or 0=SPI2)", "Default": 1},
             {"Name": "spi_speed", "Value": "", "Required": True, "Type": "string",
-             "Description": "set SPI speed (fast = 10.5MHz, slow = 320kHz)", "Default": "slow"},
+             "Description": "set SPI speed (fast = 10.5MHz, slow = 320kHz, medium = 5MHz)", "Default": "slow"},
             {"Name": "spi_polarity", "Value": "", "Required": True, "Type": "int",
              "Description": "set SPI polarity (1=high or 0=low)", "Default": 0},
             {"Name": "spi_phase", "Value": "", "Required": True, "Type": "string",
@@ -59,21 +59,6 @@ class SpiDump(AModule):
         byte_arr = self.hex_to_bin(addr_int, 3)
         return byte_arr
 
-    def connect(self):
-        """
-        Connect to hydrabus and switch into BBIO mode
-        :return: Bool
-        """
-        try:
-            device = self.get_option_value("hydrabus")
-            self.serial = hb_connect_bbio(device=device, baudrate=115200, timeout=1)
-            if not self.serial:
-                raise UserWarning("Unable to connect to hydrabus device")
-            return True
-        except UserWarning as err:
-            self.logger.handle("{}".format(err), Logger.ERROR)
-            return False
-
     def init_hydrabus(self):
         """
         Manage connection and init of the hydrabus into BBIO spi mode
@@ -88,7 +73,7 @@ class SpiDump(AModule):
             self.hb_serial.polarity = self.get_option_value("spi_polarity")
             self.hb_serial.phase = self.get_option_value("spi_phase")
             spi_speed_string = self.get_option_value("spi_speed")
-            if spi_speed_string.upper() not in ["SLOW", "FAST"]:
+            if spi_speed_string.upper() not in ["SLOW", "FAST", "MEDIUM"]:
                 self.logger.handle("Invalid spi_speed value ('slow' or 'fast' expected)", Logger.ERROR)
                 return False
             if self.get_option_value("spi_speed").upper() == "FAST":
@@ -96,6 +81,11 @@ class SpiDump(AModule):
                     self.hb_serial.set_speed(SPI.SPI1_SPEED_10M)
                 else:
                     self.hb_serial.set_speed(SPI.SPI2_SPEED_10M)
+            if self.get_option_value("spi_speed").upper() == "MEDIUM":
+                if self.get_option_value("spi_device") == 1:
+                    self.hb_serial.set_speed(SPI.SPI1_SPEED_5M)
+                else:
+                    self.hb_serial.set_speed(SPI.SPI2_SPEED_5M)
             return True
         except serial.SerialException as err:
             self.logger.handle("{}".format(err), self.logger.ERROR)
