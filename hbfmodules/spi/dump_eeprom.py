@@ -11,7 +11,7 @@ class SpiDump(AModule):
         super(SpiDump, self).__init__(hbf_config)
         self.meta.update({
             'name': 'dump SPI EEPROM',
-            'version': '0.0.1',
+            'version': '0.0.2',
             'description': 'Module to dump SPI EEPROM',
             'author': 'Jordan Ovrè'
         })
